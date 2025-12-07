@@ -1,0 +1,85 @@
+===============================================================================
+CREATE TRIGGER nghd_hoadon_insert
+ON hoadon
+AFTER INSERT
+AS
+DECLARE @ng_muahang smalldatetime
+DECLARE @ng_dangky smalldatetime
+SELECT @ng_muahang=nghd, @ ng_dangky=ngdk
+FROM khachhang, inserted
+WHERE khachhang.makh=inserted.makh
+IF @ng_muahang< @ng_dangky
+BEGIN
+rollback transaction
+print ‘ngay mua hang phai lon hon ngay dang ky’
+END
+===============================================================================
+
+CREATE TRIGGER nghd_hoadon_insert
+ON hoadon
+AFTER INSERT
+AS
+IF (EXISTS (SELECT *
+FROM inserted i JOIN khachhang kh ON i.makh=kh.makhWHERE i.nghd<kh.ngdk))
+BEGIN
+rollback transaction
+print ‘ngay mua hang phai lon hon ngay dang ky’
+END
+
+hoặc
+IF (SELECT i.NGHD FROM inserted i) < (SELECT kh.NGDK FROM
+KHACHHANG kh JOIN inserted i ON kh.MaKH = i.MaKH)
+BEGIN -- Logic xử lý lỗi END
+===============================================================================
+
+CREATE TRIGGER nghd_hoadon_update
+ON hoadon
+AFTER UPDATE
+AS
+IF (UPDATE (makh) OR UPDATE (nghd))
+BEGIN
+DECLARE @ng_muahang smalldatetime
+DECLARE @ng_dangky smalldatetime
+SELECT @ng_muahang=nghd, @ng_dangky=ngdk
+FROM khachhang, inserted
+WHERE khachhang.makh=inserted.makh
+IF @ng_muahang< @ng_dangky
+BEGIN
+rollback transaction
+print ‘ngay mua hang phai lon hon ngay dang ky’
+END
+END
+
+HOẶC:
+CREATE TRIGGER nghd_hoadon_update
+ON hoadon
+AFTER UPDATE
+AS
+IF (UPDATE (makh) OR UPDATE (nghd)
+BEGIN
+IF (EXISTS (SELECT *
+FROM inserted i JOIN khachhang kh ON i.makh=kh.makhWHERE i.nghd<kh.ngdk))
+BEGIN
+rollback transaction
+RAISERROR('Ngày mua hàng phải lớn hơn hoặc bằng ngày
+đăng ký!', 16, 1);
+END
+END
+===============================================================================
+
+CREATE TRIGGER nghd_khachhang_update
+ON KHACHHANG
+AFTER UPDATE
+AS
+DECLARE @ng_dangky smalldatetime, @makhhang char(4)
+SELECT @ng_dangky=ngdk, @makhhang=makh
+FROM inserted
+IF (UPDATE (ngdk))
+BEGIN
+IF (EXISTS (SELECT *
+FROM hoadon
+WHERE makh=@makhhang AND nghd<@ng_dangky)
+BEGIN
+rollback transaction
+END
+END
